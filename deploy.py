@@ -151,9 +151,12 @@ def forward_email(user_email, password, to_email, emails):
 
 # Main loop
 while True:
-    logger.debug("Checking for new emails...")
-    new_emails = check_new_email(POP3_SERVER, POP3_PORT, EMAIL, PASSWORD)
-    if new_emails:
-        forward_email(EMAIL, PASSWORD, "tianyp@pku.edu.cn", new_emails)
-    logger.debug("Waiting for the next check...")
-    time.sleep(WAIT_SECONDS)  # Check Every 15 Seconds
+    try:
+        logger.debug("Checking for new emails...")
+        new_emails = check_new_email(POP3_SERVER, POP3_PORT, EMAIL, PASSWORD)
+        if new_emails:
+            forward_email(EMAIL, PASSWORD, "tianyp@pku.edu.cn", new_emails)
+        logger.debug("Waiting for the next check...")
+        time.sleep(WAIT_SECONDS)  # Check Every 15 Seconds
+    except Exception as e:
+        logger.error(f"{e}")
