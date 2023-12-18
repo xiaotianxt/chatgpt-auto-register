@@ -115,7 +115,7 @@ def forward_email(user_email, password, to_email, emails):
             )
             continue
 
-        real_to = original_to.replace("@xiaotian.dev", "@pku.edu.cn")
+        real_to = original_to.replace("@xiaotian.dev", "@stu.pku.edu.cn")
         if real_to.startswith(user_email):
             continue
 
