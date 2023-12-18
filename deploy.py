@@ -115,6 +115,10 @@ def forward_email(user_email, password, to_email, emails):
             )
             continue
 
+        real_to = original_to.replace("@xiaotian.dev", "@pku.edu.cn")
+        if real_to.startswith(user_email):
+            continue
+
         logger.info(
             f"[Forwarding] {original_from} -> {original_to}: {original_subject}"
         )
@@ -123,8 +127,6 @@ def forward_email(user_email, password, to_email, emails):
         msg["From"] = email["From"]
         msg["To"] = email["To"]
         msg["Subject"] = email["Subject"]
-
-        real_to = original_to.replace("@xiaotian.dev", "@pku.edu.cn")
 
         if email.is_multipart():
             for part in email.get_payload():
@@ -144,7 +146,7 @@ def forward_email(user_email, password, to_email, emails):
         except smtplib.SMTPRecipientsRefused as e:
             logger.error(f"Failed to forward email to {real_to}: {e}")
         except Exception as e:
-            logger.error(f"Failed to forward email: {e}")
+            logger.error(f"Failed to forward email to {real_to}: {e}")
 
 
 # Main loop

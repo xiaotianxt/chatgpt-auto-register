@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   openai-email-forward:
-    image: xiaotianxt/openai-email-forward:v0.0.1
+    image: xiaotianxt/openai-email-forward:latest
     environment:
-      ITS_ID: XXXXX
-      ITS_PASSWORD: XXXXX
+      ITS_ID: "${ITS_ID}"
+      ITS_PASSWORD: "${ITS_PASSWORD}"
