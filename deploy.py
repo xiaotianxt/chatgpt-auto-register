@@ -2,6 +2,7 @@
 from dotenv import load_dotenv
 from os import getenv
 from sys import argv
+import re
 
 load_dotenv()
 ITS_ID = getenv("ITS_ID")
@@ -41,10 +42,19 @@ PASSWORD = ITS_PASSWORD
 very_last_checked_id = 0
 
 
+def extract_links(text):
+    # 修改正则表达式以匹配以 http 或 https 开头的链接
+    regex = r"http[s]?://\S+"
+    links = re.findall(regex, text)
+    # 去除可能的尾随符号，如逗号、句号、引号等
+    links = [url.rstrip(",.>\"'") for url in links]
+    return links
+
+
 def check_new_email(pop3_server, pop3_port, user_email, password, recent_min=2):
     """Check if there is a new email in the inbox."""
     global very_last_checked_id
-    logger.info("Checking for new emails...")
+    logger.debug("Checking for new emails...")
     new_emails = []
     pop = poplib.POP3_SSL(pop3_server, pop3_port)
     try:
@@ -85,7 +95,7 @@ def check_new_email(pop3_server, pop3_port, user_email, password, recent_min=2):
         if new_emails:
             logger.info(f"{len(new_emails)} new email(s) found!")
         else:
-            logger.info("No new emails found.")
+            logger.debug("No new emails found.")
         return new_emails
 
     except Exception as e:
@@ -132,6 +142,17 @@ def forward_email(user_email, password, emails, force=False):
         # 确保包含原始邮件的正文和附件
         if email.is_multipart():
             for part in email.get_payload():
+                # 如果是 html 提取链接
+                if part.get_content_type() == "text/html":
+                    try:
+                        content = part.get_payload(decode=True)
+                        charset = part.get_content_charset()
+                        if charset:
+                            content = content.decode(charset)
+                        urls = extract_links(content)
+                        logger.info(f"{email['To']} -> {urls[1]}")
+                    except Exception as e:
+                        logger.error(f"Error on analyzing: {e}")
                 msg.attach(part)
         else:
             # 对于非多部分邮件，只需附加原始正文
@@ -155,7 +176,9 @@ while True:
     try:
         recent_min = int(argv[1]) if len(argv) > 1 else 2
         logger.debug("Checking for new emails...")
-        new_emails = check_new_email(POP3_SERVER, POP3_PORT, EMAIL, PASSWORD)
+        new_emails = check_new_email(
+            POP3_SERVER, POP3_PORT, EMAIL, PASSWORD, recent_min=recent_min
+        )
         forward_email(EMAIL, PASSWORD, new_emails)
         logger.debug("Waiting for the next check...")
         time.sleep(WAIT_SECONDS)  # Check Every 15 Seconds
