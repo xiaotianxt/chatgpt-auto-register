@@ -165,10 +165,8 @@ def forward_email(user_email, password, emails, force=False):
             server.sendmail(user_email, real_to, text)
             server.quit()
             logger.info("Email forwarded.")
-        except smtplib.SMTPRecipientsRefused as e:
-            logger.error(f"Failed to forward email to {real_to}: {e}")
         except Exception as e:
-            logger.error(f"Failed to forward email to {real_to}: {e}")
+            logger.error(f"Failed to forward email to {real_to}, {type(e)}: {e}")
 
 
 # Main loop

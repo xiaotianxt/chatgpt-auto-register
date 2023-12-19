@@ -5,3 +5,6 @@ services:
     environment:
       ITS_ID: "${ITS_ID}"
       ITS_PASSWORD: "${ITS_PASSWORD}"
+      TZ: Asia/Shanghai
+    container_name: forward
+
