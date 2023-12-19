@@ -158,16 +158,24 @@ def forward_email(user_email, password, emails, force=False):
             # 对于非多部分邮件，只需附加原始正文
             msg.attach(MIMEText(email.get_payload()))
 
-        try:
-            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-            server.login(user_email, password)
-            text = msg.as_string()
-            server.sendmail(user_email, real_to, text)
-            server.quit()
-            logger.info("Email forwarded.")
-        except Exception as e:
-            logger.error(f"Failed to forward email to {real_to}, {type(e)}: {e}")
+        real_send(real_to, msg, user_email, password)
+        logger.info("Email forwarded.")
 
+def real_send(real_to, msg, user_email, password):
+    try:
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.login(user_email, password)
+        text = msg.as_string()
+        server.sendmail(user_email, real_to, text)
+        server.quit()
+    except smtplib.SMTPRecipientsRefused as e:
+        logger.error(f"Failed to forward email to {real_to}, {type(e)}: {e}")
+        logger.info(f"Try to use pku.edu.cn instead of stu.pku.edu.cn")
+        if real_to.endswith("@stu.pku.edu.cn"):
+            real_to = real_to.replace("@stu.pku.edu.cn", "@pku.edu.cn")
+            real_send(real_to, msg, user_email, password)
+    except Exception as e:
+        logger.error(f"Failed to forward email to {real_to}, {type(e)}: {e}")
 
 # Main loop
 while True:
