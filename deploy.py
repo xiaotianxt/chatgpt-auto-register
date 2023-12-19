@@ -1,6 +1,7 @@
 # %%
 from dotenv import load_dotenv
 from os import getenv
+from sys import argv
 
 load_dotenv()
 ITS_ID = getenv("ITS_ID")
@@ -10,7 +11,6 @@ WAIT_SECONDS = getenv("WAIT_SECONDS") or 15
 assert all([ITS_ID, ITS_PASSWORD, WAIT_SECONDS]), "Environment variables not set"
 
 import poplib
-import ssl
 import logging
 import time
 
@@ -30,32 +30,23 @@ from email.header import decode_header
 from email.utils import parseaddr, parsedate_tz, mktime_tz
 
 # Configuration settings
-POP3_SERVER = "pop3.pku.edu.cn"
-SMTP_SERVER = "smtp.pku.edu.cn"
+POP3_SERVER = "pop3.stu.pku.edu.cn"
+SMTP_SERVER = "smtp.stu.pku.edu.cn"
 POP3_PORT = 995  # SSL port
 SMTP_PORT = 25  # No SSL
 
-EMAIL = ITS_ID + "@pku.edu.cn"
+EMAIL = ITS_ID + "@stu.pku.edu.cn"
 PASSWORD = ITS_PASSWORD
 
 very_last_checked_id = 0
 
 
-# %%
-def create_ssl_context():
-    """创建一个配置为 TLSv1.2 和 AES128-SHA 的 SSL 上下文"""
-    context = ssl.create_default_context()
-    context.options &= ~ssl.OP_NO_TLSv1_2  # 确保启用 TLSv1.2
-    context.set_ciphers("AES128-SHA")  # 尝试指定 AES128-SHA 加密套件
-    return context
-
-
-def check_new_email(pop3_server, pop3_port, user_email, password, recent_min=1):
+def check_new_email(pop3_server, pop3_port, user_email, password, recent_min=2):
     """Check if there is a new email in the inbox."""
     global very_last_checked_id
     logger.info("Checking for new emails...")
     new_emails = []
-    pop = poplib.POP3_SSL(pop3_server, pop3_port, context=create_ssl_context())
+    pop = poplib.POP3_SSL(pop3_server, pop3_port)
     try:
         # Log in to the server
         pop.user(user_email)
@@ -71,6 +62,16 @@ def check_new_email(pop3_server, pop3_port, user_email, password, recent_min=1):
 
             # Parse the email content
             msg = message_from_bytes(raw_email)
+            decoded_header = decode_header(msg["Subject"])
+            logger.info(
+                "Checking mail: "
+                + (
+                    decoded_header[0][0].decode(decoded_header[0][1])
+                    if decoded_header[0][1]
+                    else decoded_header[0][0]
+                )
+            )
+
             date_tuple = parsedate_tz(msg["Date"])
             if date_tuple:
                 local_date = mktime_tz(date_tuple)
@@ -92,7 +93,7 @@ def check_new_email(pop3_server, pop3_port, user_email, password, recent_min=1):
         return []
 
 
-def forward_email(user_email, password, to_email, emails):
+def forward_email(user_email, password, emails, force=False):
     """Forward an email to another email address."""
     for email in emails:
         original_from = parseaddr(email["From"])[1]
@@ -105,7 +106,7 @@ def forward_email(user_email, password, to_email, emails):
             else decoded_header[0][0]
         )
 
-        if (
+        if not force and (
             not original_to.endswith("@xiaotian.dev")
             or original_from != "noreply@tm.openai.com"
             or original_subject != "OpenAI - Verify your email"
@@ -116,7 +117,7 @@ def forward_email(user_email, password, to_email, emails):
             continue
 
         real_to = original_to.replace("@xiaotian.dev", "@stu.pku.edu.cn")
-        if real_to.startswith(user_email):
+        if not force and real_to.startswith(user_email):
             continue
 
         logger.info(
@@ -128,16 +129,16 @@ def forward_email(user_email, password, to_email, emails):
         msg["To"] = email["To"]
         msg["Subject"] = email["Subject"]
 
+        # 确保包含原始邮件的正文和附件
         if email.is_multipart():
             for part in email.get_payload():
-                content_type = part.get_content_type()
-                if content_type == "text/html":
-                    msg.attach(MIMEText(part.get_payload(), "html"))
+                msg.attach(part)
         else:
-            msg.attach(MIMEText(email.get_payload(), "plain"))
+            # 对于非多部分邮件，只需附加原始正文
+            msg.attach(MIMEText(email.get_payload()))
 
         try:
-            server = smtplib.SMTP("smtp.pku.edu.cn", 25)
+            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
             server.login(user_email, password)
             text = msg.as_string()
             server.sendmail(user_email, real_to, text)
@@ -152,10 +153,10 @@ def forward_email(user_email, password, to_email, emails):
 # Main loop
 while True:
     try:
+        recent_min = int(argv[1]) if len(argv) > 1 else 2
         logger.debug("Checking for new emails...")
         new_emails = check_new_email(POP3_SERVER, POP3_PORT, EMAIL, PASSWORD)
-        if new_emails:
-            forward_email(EMAIL, PASSWORD, "tianyp@pku.edu.cn", new_emails)
+        forward_email(EMAIL, PASSWORD, new_emails)
         logger.debug("Waiting for the next check...")
         time.sleep(WAIT_SECONDS)  # Check Every 15 Seconds
     except Exception as e:
