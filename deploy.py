@@ -3,22 +3,27 @@ from dotenv import load_dotenv
 from os import getenv
 from sys import argv
 import re
+import poplib
+import logging
+import time
 
 load_dotenv()
 ITS_ID = getenv("ITS_ID")
 ITS_PASSWORD = getenv("ITS_PASSWORD")
 WAIT_SECONDS = getenv("WAIT_SECONDS") or 15
+LOG_LEVEL = getenv("LOG_LEVEL", "INFO")
+LOG_FORMAT = getenv(
+    "LOG_FORMAT", "%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s"
+)
+LOG_LEVEL = getattr(logging, LOG_LEVEL.upper(), logging.INFO)
 
 assert all([ITS_ID, ITS_PASSWORD, WAIT_SECONDS]), "Environment variables not set"
 
-import poplib
-import logging
-import time
 
 # 设置基本的日志配置
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s",
+    level=LOG_LEVEL,
+    format=LOG_FORMAT,
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
