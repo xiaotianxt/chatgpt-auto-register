@@ -99,7 +99,7 @@ def check_new_email(pop3_server, pop3_port, user_email, password, recent_min=2):
         return new_emails
 
     except Exception as e:
-        logger.error(f"Failed to check for new emails: {e}")
+        logger.error(f"Failed to check for new emails: {e}", exc_info=True)
         return []
 
 
@@ -152,7 +152,7 @@ def forward_email(user_email, password, emails, force=False):
                         urls = extract_links(content)
                         logger.info(f"{email['To']} -> {urls[1]}")
                     except Exception as e:
-                        logger.error(f"Error on analyzing: {e}")
+                        logger.error(f"Error on analyzing: {e}", exc_info=True)
                 msg.attach(part)
         else:
             # 对于非多部分邮件，只需附加原始正文
@@ -160,6 +160,7 @@ def forward_email(user_email, password, emails, force=False):
 
         real_send(real_to, msg, user_email, password)
         logger.info("Email forwarded.")
+
 
 def real_send(real_to, msg, user_email, password):
     try:
@@ -175,7 +176,10 @@ def real_send(real_to, msg, user_email, password):
             real_to = real_to.replace("@stu.pku.edu.cn", "@pku.edu.cn")
             real_send(real_to, msg, user_email, password)
     except Exception as e:
-        logger.error(f"Failed to forward email to {real_to}, {type(e)}: {e}")
+        logger.error(
+            f"Failed to forward email to {real_to}, {type(e)}: {e}", exc_info=True
+        )
+
 
 # Main loop
 while True:
@@ -189,4 +193,4 @@ while True:
         logger.debug("Waiting for the next check...")
         time.sleep(WAIT_SECONDS)  # Check Every 15 Seconds
     except Exception as e:
-        logger.error(f"{e}")
+        logger.error("Major Error", exc_info=True)
